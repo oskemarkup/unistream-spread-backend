@@ -14,7 +14,7 @@ const getBinanceRate = payType => axios.post('https://p2p.binance.com/bapi/c2c/v
     tradeType: 'BUY',
 });
 
-const unistreamUrl = 'https://online.unistream.ru/card2cash/calculate?payout_type=cash&destination=TUR&amount=4600&currency=USD&accepted_currency=RUB&profile=unistream_front&promo_id=445859%0D%0A';
+const unistreamUrl = 'https://online.unistream.ru/card2cash/calculate?payout_type=cash&destination=TUR&amount=1000&currency=USD&accepted_currency=RUB&profile=unistream_front&promo_id=445859%0D%0A';
 
 /* GET users listing. */
 router.get('/', function(req, res, next) {
