@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
-const getBinanceRate = payType => axios.post('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
+const getBinanceRate = (payType, amount) => axios.post('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
     proMerchantAds: false,
     page: 1,
     rows: 10,
@@ -11,31 +11,51 @@ const getBinanceRate = payType => axios.post('https://p2p.binance.com/bapi/c2c/v
     publisherType: null,
     asset: 'USDT',
     fiat: 'RUB',
-    tradeType: 'BUY',
+    tradeType: 'SELL',
+    transAmount: amount,
 });
 
-const unistreamUrl = 'https://online.unistream.ru/card2cash/calculate?payout_type=cash&destination=TUR&amount=1000&currency=USD&accepted_currency=RUB&profile=unistream_front&promo_id=445859%0D%0A';
+const unistreamUrl = 'https://online.unistream.ru/card2cash/calculate?payout_type=cash&destination=TUR&amount=1000&currency=USD&accepted_currency=RUB&profile=unistream_front';
+const unistreamPromoUrl = unistreamUrl + '&promo_id=445859%0D%0A';
 
-/* GET users listing. */
-router.get('/', function(req, res, next) {
-    const raifRatePromise = getBinanceRate('RaiffeisenBank');
-    const sberRatePromise = getBinanceRate('RosBankNew');
-    const tinkRatePromise = getBinanceRate('TinkoffNew');
+const parseUni = data => Number((data.fees[0].acceptedAmount / data.fees[0].withdrawAmount).toFixed(4));
+
+router.get('/unistream', function(req, res) {
     const unistreamRatePromise = axios.get(unistreamUrl);
+    const unistreamPromoRatePromise = axios.get(unistreamPromoUrl);
 
-    Promise.all([ raifRatePromise, sberRatePromise, tinkRatePromise, unistreamRatePromise ])
-        .then(([
-                   { data: raifResponse },
-                   { data: sberResponse },
-                   { data: tinkResponse },
-                   { data: unistreamResponse },
-               ]) => {
-            res.json({
-                raif: Number(raifResponse.data[0].adv.price),
-                sber: Number(sberResponse.data[0].adv.price),
-                tink: Number(tinkResponse.data[0].adv.price),
-                uni: unistreamResponse.fees[0].acceptedAmount / unistreamResponse.fees[0].withdrawAmount,
-            });
+    Promise.all([ unistreamRatePromise, unistreamPromoRatePromise ])
+        .then(response => res.json([parseUni(response[0].data), parseUni(response[1].data)]));
+});
+
+const parseBinance = item => ({
+    id: item.adv.advNo,
+    rate: Number(item.adv.price),
+    amount: Number(item.adv.surplusAmount),
+    min: Number(item.adv.minSingleTransAmount),
+    max: Number(item.adv.maxSingleTransAmount),
+    isMerchant: item.advertiser.userType !== 'user',
+    deals: item.advertiser.monthOrderCount,
+    percentage: item.advertiser.monthFinishRate * 100,
+    nickname: item.advertiser.nickName,
+});
+
+router.get('/binance', function(req, res) {
+    const { bankName, amount } = req.query;
+
+    const banksMap = {
+        sber: 'RosBankNew',
+        raif: 'RaiffeisenBank',
+        tink: 'TinkoffNew',
+    };
+
+    if (!banksMap[bankName] || !amount) {
+        return res.json([]);
+    }
+
+    getBinanceRate(banksMap[bankName], amount)
+        .then(({ data }) => {
+            res.json(data.data.map(parseBinance));
         });
 });
 
