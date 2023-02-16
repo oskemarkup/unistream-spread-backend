@@ -50,7 +50,7 @@ router.get('/binance', function(req, res) {
     };
 
     const banks = (Array.isArray(bankNames) ? bankNames : [bankNames])
-        .reduce((acc, item) => !item in banksMap ? acc : [...acc, item], []);
+        .reduce((acc, item) => !item in banksMap ? acc : [...acc, banksMap[item]], []);
 
     if (!banks.length || !amount) {
         return res.json([]);
@@ -58,7 +58,7 @@ router.get('/binance', function(req, res) {
 
     getBinanceRate(banks, amount)
         .then(({ data }) => {
-            res.json(data.data.map(parseBinance));
+            res.json((data.data || []).map(parseBinance));
         });
 });
 
