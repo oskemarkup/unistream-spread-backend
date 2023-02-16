@@ -2,6 +2,18 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
+const banksMap = {
+    sber: 'RosBankNew',
+    raif: 'RaiffeisenBank',
+    tink: 'TinkoffNew',
+};
+
+const banksReversedMap = {
+    RosBankNew: 'sber',
+    RaiffeisenBank: 'raif',
+    TinkoffNew: 'tink',
+};
+
 const getBinanceRate = (payTypes, amount) => axios.post('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
     proMerchantAds: false,
     page: 1,
@@ -38,16 +50,11 @@ const parseBinance = item => ({
     deals: item.advertiser.monthOrderCount,
     percentage: item.advertiser.monthFinishRate * 100,
     nickname: item.advertiser.nickName,
+    banks: item.adv.tradeMethods.map(method => banksReversedMap[method.identifier] || method.identifier),
 });
 
 router.get('/binance', function(req, res) {
     const { bankNames, amount } = req.query;
-
-    const banksMap = {
-        sber: 'RosBankNew',
-        raif: 'RaiffeisenBank',
-        tink: 'TinkoffNew',
-    };
 
     const banks = (Array.isArray(bankNames) ? bankNames : [bankNames])
         .reduce((acc, item) => !item in banksMap ? acc : [...acc, banksMap[item]], []);
