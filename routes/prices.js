@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
-const getBinanceRate = (payType, amount) => axios.post('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
+const getBinanceRate = (payTypes, amount) => axios.post('https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search', {
     proMerchantAds: false,
     page: 1,
-    rows: 10,
-    payTypes: [ payType ],
+    rows: 15,
+    payTypes,
     countries: [],
     publisherType: null,
     asset: 'USDT',
@@ -41,7 +41,7 @@ const parseBinance = item => ({
 });
 
 router.get('/binance', function(req, res) {
-    const { bankName, amount } = req.query;
+    const { bankNames, amount } = req.query;
 
     const banksMap = {
         sber: 'RosBankNew',
@@ -49,11 +49,14 @@ router.get('/binance', function(req, res) {
         tink: 'TinkoffNew',
     };
 
-    if (!banksMap[bankName] || !amount) {
+    const banks = (Array.isArray(bankNames) ? bankNames : [bankNames])
+        .reduce((acc, item) => !item in banksMap ? acc : [...acc, item], []);
+
+    if (!banks.length || !amount) {
         return res.json([]);
     }
 
-    getBinanceRate(banksMap[bankName], amount)
+    getBinanceRate(banks, amount)
         .then(({ data }) => {
             res.json(data.data.map(parseBinance));
         });
